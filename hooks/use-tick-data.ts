@@ -73,16 +73,35 @@ export function useTickData() {
   const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "disconnected">("disconnected")
   const [rawMessages, setRawMessages] = useState<string[]>([])
   const [debugInfo, setDebugInfo] = useState<string[]>([])
+  const [nextRetryAt, setNextRetryAt] = useState<number | null>(null)
+  const [retryCountdown, setRetryCountdown] = useState<number | null>(null)
 
   const eventSourceRef = useRef<EventSource | null>(null)
   const freezeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const connectionAttempts = useRef(0)
 
+  // Disconnect alert sound support
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const disconnectSoundIntervalRef = useRef<number | null>(null)
+
   /**
    * Add a debug line to the internal debug log (keeps size bounded)
    * @param message - The debug message to append
    */
+  useEffect(() => {
+    const initAudio = () => {
+      if (!audioContextRef.current) {
+        try {
+          audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
+        } catch {}
+      }
+      window.removeEventListener("click", initAudio)
+    }
+    window.addEventListener("click", initAudio)
+    return () => window.removeEventListener("click", initAudio)
+  }, [])
+
   const addDebugInfo = useCallback((message: string) => {
     const timestamp = new Date().toLocaleTimeString("en-IN", {
       timeZone: "Asia/Kolkata",
@@ -298,6 +317,83 @@ export function useTickData() {
    * after several failed attempts. Incoming message payloads are processed and
    * tick state is updated.
    */
+  function getAudioPrefs(): { type: string; volume: number } {
+    if (typeof window === "undefined") return { type: "square", volume: 0.6 }
+    const type = localStorage.getItem("alertSoundType") || "square"
+    const v = Number.parseInt(localStorage.getItem("alertSoundVolume") || "60")
+    const volume = Number.isFinite(v) ? Math.max(0, Math.min(100, v)) / 100 : 0.6
+    return { type, volume }
+  }
+
+  function mapSound(type: string): { osc: OscillatorType; freq: number } | null {
+    const table: Record<string, { osc: OscillatorType; freq: number }> = {
+      beep: { osc: "sine", freq: 660 },
+      ding: { osc: "sine", freq: 880 },
+      bell: { osc: "triangle", freq: 1000 },
+      buzzer: { osc: "square", freq: 220 },
+      chime: { osc: "sine", freq: 523.25 },
+      sine: { osc: "sine", freq: 440 },
+      square: { osc: "square", freq: 440 },
+      triangle: { osc: "triangle", freq: 440 },
+      sawtooth: { osc: "sawtooth", freq: 440 },
+    }
+    if (type === "silent") return null
+    return table[type] || table.square
+  }
+
+  const startDisconnectSound = useCallback(() => {
+    if (!audioContextRef.current) return
+    const ctx = audioContextRef.current
+    if (ctx.state === "suspended") ctx.resume()
+
+    const prefs = getAudioPrefs()
+    const mapped = mapSound(prefs.type)
+    if (!mapped) return
+
+    const beepDurationMs = 300
+    const doBeep = () => {
+      try {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.type = mapped.osc
+        osc.frequency.setValueAtTime(mapped.freq, ctx.currentTime)
+        const vol = Math.max(0, Math.min(1, prefs.volume))
+        gain.gain.setValueAtTime(vol, ctx.currentTime)
+        const now = ctx.currentTime
+        osc.start(now)
+        gain.gain.setTargetAtTime(vol, now, 0.01)
+        gain.gain.setTargetAtTime(0, now + beepDurationMs / 1000 - 0.05, 0.05)
+        osc.stop(now + beepDurationMs / 1000)
+      } catch {}
+    }
+    if (disconnectSoundIntervalRef.current != null) window.clearInterval(disconnectSoundIntervalRef.current)
+    doBeep()
+    disconnectSoundIntervalRef.current = window.setInterval(doBeep, 1000)
+  }, [])
+
+  const stopDisconnectSound = useCallback(() => {
+    if (disconnectSoundIntervalRef.current != null) {
+      window.clearInterval(disconnectSoundIntervalRef.current)
+      disconnectSoundIntervalRef.current = null
+    }
+  }, [])
+
+  // Retry countdown updater
+  useEffect(() => {
+    if (nextRetryAt == null) {
+      setRetryCountdown(null)
+      return
+    }
+    const id = window.setInterval(() => {
+      const secs = Math.max(0, Math.ceil((nextRetryAt - Date.now()) / 1000))
+      setRetryCountdown(secs)
+      if (secs <= 0) window.clearInterval(id)
+    }, 500)
+    return () => window.clearInterval(id)
+  }, [nextRetryAt])
+
   const connectToSSE = useCallback(() => {
     if (eventSourceRef.current) {
       eventSourceRef.current.close()
@@ -327,8 +423,10 @@ export function useTickData() {
           } catch (e) {}
           setIsConnected(false)
           setConnectionStatus("disconnected")
-          const delay = Math.min(2000 * Math.pow(1.5, connectionAttempts.current - 1), 15000)
+          const delay = 10000
           if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
+          setNextRetryAt(Date.now() + delay)
+          startDisconnectSound()
           reconnectTimeoutRef.current = setTimeout(connectToSSE, delay)
           addAlert("connection", "Connection timeout", "high")
         }
@@ -339,6 +437,9 @@ export function useTickData() {
         addDebugInfo("SSE connection opened successfully")
         setIsConnected(true)
         setConnectionStatus("connected")
+        setNextRetryAt(null)
+        setRetryCountdown(null)
+        stopDisconnectSound()
         connectionAttempts.current = 0
         addAlert("connection", "Successfully connected to tick stream", "low")
       }
@@ -404,7 +505,9 @@ export function useTickData() {
         setIsConnected(false)
         setConnectionStatus("disconnected")
 
-        const delay = Math.min(2000 * Math.pow(1.5, connectionAttempts.current - 1), 15000)
+        const delay = 10000
+        setNextRetryAt(Date.now() + delay)
+        startDisconnectSound()
         addAlert("connection", `Connection lost. Reconnecting in ${delay / 1000}s...`, "high")
 
         if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
@@ -413,7 +516,12 @@ export function useTickData() {
     } catch (error) {
       addDebugInfo(`Failed to create SSE connection: ${error}`)
       setConnectionStatus("disconnected")
-      addAlert("connection", `Connection failed: ${error}`, "high")
+      const delay = 10000
+      setNextRetryAt(Date.now() + delay)
+      startDisconnectSound()
+      addAlert("connection", `Connection failed. Reconnecting in ${delay / 1000}s...`, "high")
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
+      reconnectTimeoutRef.current = setTimeout(connectToSSE, delay)
     }
   }, [addAlert, addDebugInfo, processTickData])
 
@@ -430,8 +538,9 @@ export function useTickData() {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)
       }
+      stopDisconnectSound()
     }
-  }, [connectToSSE])
+  }, [connectToSSE, stopDisconnectSound])
 
   const averageDelay = calculateAverageDelay(ticks)
 
@@ -450,5 +559,6 @@ export function useTickData() {
     rawMessages,
     debugInfo,
     addTestTick,
+    nextRetryIn: retryCountdown,
   }
 }

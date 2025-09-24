@@ -66,6 +66,7 @@ interface SymbolState {
   wasMarketOpen: boolean
   oscillator: OscillatorNode | null
   gainNode: GainNode | null
+  intervalId: number | null
 }
 
 const DEFAULT_CONFIG: InactivityAlertConfig = {
@@ -212,19 +213,52 @@ export function useInactivityAlerts(ticks: TickData[]) {
 
   const stopAlertSound = useCallback((instrumentToken: number) => {
     const state = symbolStates.current.get(instrumentToken)
-    if (state?.oscillator) {
+    if (!state) return
+
+    if (state.intervalId != null) {
+      clearInterval(state.intervalId)
+      state.intervalId = null
+    }
+
+    if (state.oscillator) {
       try {
         state.oscillator.stop()
         state.oscillator.disconnect()
-        state.gainNode?.disconnect()
-      } catch (e) {
-        // ignore errors stopping oscillator
-      } finally {
-        state.oscillator = null
-        state.gainNode = null
-      }
+      } catch {}
+      state.oscillator = null
+    }
+    if (state.gainNode) {
+      try {
+        state.gainNode.disconnect()
+      } catch {}
+      state.gainNode = null
     }
   }, [])
+
+  // Read global audio preferences from localStorage
+  function getAudioPrefs(): { type: string; volume: number } {
+    if (typeof window === "undefined") return { type: "beep", volume: 0.6 }
+    const type = localStorage.getItem("alertSoundType") || "square"
+    const v = Number.parseInt(localStorage.getItem("alertSoundVolume") || "60")
+    const volume = Number.isFinite(v) ? Math.max(0, Math.min(100, v)) / 100 : 0.6
+    return { type, volume }
+  }
+
+  function mapSound(type: string): { osc: OscillatorType; freq: number } | null {
+    const table: Record<string, { osc: OscillatorType; freq: number }> = {
+      beep: { osc: "sine", freq: 660 },
+      ding: { osc: "sine", freq: 880 },
+      bell: { osc: "triangle", freq: 1000 },
+      buzzer: { osc: "square", freq: 220 },
+      chime: { osc: "sine", freq: 523.25 },
+      sine: { osc: "sine", freq: 440 },
+      square: { osc: "square", freq: 440 },
+      triangle: { osc: "triangle", freq: 440 },
+      sawtooth: { osc: "sawtooth", freq: 440 },
+    }
+    if (type === "silent") return null
+    return table[type] || table.beep
+  }
 
   const playAlertSound = useCallback(
     (instrumentToken: number) => {
@@ -236,22 +270,45 @@ export function useInactivityAlerts(ticks: TickData[]) {
       // Stop any existing sound for this instrument first
       stopAlertSound(instrumentToken)
 
-      const oscillator = ctx.createOscillator()
-      const gainNode = ctx.createGain()
+      const prefs = getAudioPrefs()
+      const mapped = mapSound(prefs.type)
+      if (!mapped) return
 
-      oscillator.connect(gainNode)
-      gainNode.connect(ctx.destination)
+      const beepDurationMs = 300
 
-      oscillator.type = "sine"
-      oscillator.frequency.setValueAtTime(440, ctx.currentTime)
-      gainNode.gain.setValueAtTime(0.5, ctx.currentTime)
+      const doBeep = () => {
+        try {
+          const oscillator = ctx.createOscillator()
+          const gainNode = ctx.createGain()
+          oscillator.connect(gainNode)
+          gainNode.connect(ctx.destination)
 
-      oscillator.start(ctx.currentTime)
+          oscillator.type = mapped.osc
+          oscillator.frequency.setValueAtTime(mapped.freq, ctx.currentTime)
+          const vol = Math.max(0, Math.min(1, prefs.volume))
+          gainNode.gain.setValueAtTime(vol, ctx.currentTime)
 
+          const now = ctx.currentTime
+          oscillator.start(now)
+          // quick fade-out to avoid clicks
+          gainNode.gain.setTargetAtTime(vol, now, 0.01)
+          gainNode.gain.setTargetAtTime(0, now + beepDurationMs / 1000 - 0.05, 0.05)
+          oscillator.stop(now + beepDurationMs / 1000)
+
+          const state = symbolStates.current.get(instrumentToken)
+          if (state) {
+            state.oscillator = oscillator
+            state.gainNode = gainNode
+          }
+        } catch {}
+      }
+
+      // Beep immediately and then every 1s
+      doBeep()
+      const id = window.setInterval(doBeep, 1000)
       const state = symbolStates.current.get(instrumentToken)
       if (state) {
-        state.oscillator = oscillator
-        state.gainNode = gainNode
+        state.intervalId = id
       }
     },
     [stopAlertSound],
@@ -436,6 +493,7 @@ export function useInactivityAlerts(ticks: TickData[]) {
           wasMarketOpen: shouldAlert,
           oscillator: null,
           gainNode: null,
+          intervalId: null,
         }
         symbolStates.current.set(tick.instrument_token, state)
         return

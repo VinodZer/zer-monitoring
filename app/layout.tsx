@@ -7,6 +7,11 @@ export const metadata: Metadata = {
   title: 'Market Ticks Monitor - Real-Time Trading Dashboard',
   description: 'Professional real-time market data monitoring with inactivity alerts',
   generator: 'v0.dev',
+  icons: {
+    icon: [
+      { url: 'https://cdn.builder.io/api/v1/image/assets%2F212686917e6a43feac2002a1e679ce72%2F4232d9a3a4bc400a91ef28288c1e35f6?format=webp&width=800' },
+    ],
+  },
 }
 
 /**
