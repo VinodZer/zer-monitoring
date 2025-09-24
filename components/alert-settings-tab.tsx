@@ -1,13 +1,16 @@
 "use client"
 
-import { useMemo, memo, useCallback } from "react"
-import { Bell, Settings2, Clock, AlertTriangle } from "lucide-react"
+import { useMemo, memo, useCallback, useEffect, useRef, useState } from "react"
+import { Bell, Settings2, Clock, AlertTriangle, Volume2, Play } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Button } from "@/components/ui/button"
+import { Slider } from "@/components/ui/slider"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { TickData } from "@/hooks/use-tick-data"
 import type { InactivityAlertConfig } from "@/hooks/use-inactivity-alerts"
 import { getInstrumentName, getExchange } from "./market-data-grid"
@@ -225,6 +228,72 @@ export function AlertSettingsTab({
     return { enabled: false, duration: 30, respectMarketHours: true, dpltpEnabled: true, dpltpDuration: dpltp }
   }
 
+  // Global alert sound settings (persist to localStorage)
+  const [soundType, setSoundType] = useState<string>(() => {
+    if (typeof window === "undefined") return "square"
+    return localStorage.getItem("alertSoundType") || "square"
+  })
+  const [volume, setVolume] = useState<number>(() => {
+    if (typeof window === "undefined") return 60
+    const v = Number.parseInt(localStorage.getItem("alertSoundVolume") || "60")
+    return Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : 60
+  })
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    localStorage.setItem("alertSoundType", soundType)
+  }, [soundType])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    localStorage.setItem("alertSoundVolume", String(volume))
+  }, [volume])
+
+  // Preview audio
+  const previewCtxRef = useRef<AudioContext | null>(null)
+  const handlePreview = useCallback(() => {
+    try {
+      if (!previewCtxRef.current) {
+        previewCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
+      }
+      const ctx = previewCtxRef.current
+      if (!ctx) return
+      if (ctx.state === "suspended") ctx.resume()
+
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+
+      // Map sound types to waveform and frequency
+      const map: Record<string, { type: OscillatorType; freq: number }> = {
+        beep: { type: "sine", freq: 660 },
+        ding: { type: "sine", freq: 880 },
+        bell: { type: "triangle", freq: 1000 },
+        buzzer: { type: "square", freq: 220 },
+        chime: { type: "sine", freq: 523.25 },
+        sine: { type: "sine", freq: 440 },
+        square: { type: "square", freq: 440 },
+        triangle: { type: "triangle", freq: 440 },
+        sawtooth: { type: "sawtooth", freq: 440 },
+        silent: { type: "sine", freq: 0 },
+      }
+      const params = map[soundType] || map.beep
+      if (soundType === "silent") return
+
+      osc.type = params.type
+      osc.frequency.setValueAtTime(params.freq, ctx.currentTime)
+      gain.gain.value = Math.max(0, Math.min(1, volume / 100))
+
+      const now = ctx.currentTime
+      osc.start(now)
+      // Short preview with quick fade-out
+      gain.gain.setTargetAtTime(gain.gain.value, now, 0.01)
+      gain.gain.setTargetAtTime(0, now + 0.4, 0.1)
+      osc.stop(now + 0.6)
+    } catch {}
+  }, [soundType, volume])
+
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 max-w-full overflow-hidden">
       {/* Header - Responsive */}
@@ -246,6 +315,59 @@ export function AlertSettingsTab({
           </Badge>
         </div>
       </div>
+
+      {/* Alert Sound Settings */}
+      <Card>
+        <CardHeader className="p-3 sm:p-4">
+          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+            <Volume2 className="w-4 h-4" /> Alert Sound Settings
+          </CardTitle>
+          <CardDescription className="text-xs sm:text-sm">Choose the sound and volume for alerts</CardDescription>
+        </CardHeader>
+        <CardContent className="p-3 sm:p-4 pt-0">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 items-center">
+            <div className="space-y-1">
+              <Label className="text-xs">Sound</Label>
+              <Select value={soundType} onValueChange={setSoundType}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="Select sound" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="beep">Beep</SelectItem>
+                  <SelectItem value="ding">Ding</SelectItem>
+                  <SelectItem value="bell">Bell</SelectItem>
+                  <SelectItem value="buzzer">Buzzer</SelectItem>
+                  <SelectItem value="chime">Chime</SelectItem>
+                  <SelectItem value="sine">Sine</SelectItem>
+                  <SelectItem value="square">Square</SelectItem>
+                  <SelectItem value="triangle">Triangle</SelectItem>
+                  <SelectItem value="sawtooth">Sawtooth</SelectItem>
+                  <SelectItem value="silent">Silent</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Volume</Label>
+              <div className="flex items-center gap-3">
+                <Slider
+                  value={[volume]}
+                  onValueChange={(v) => setVolume(v[0])}
+                  min={0}
+                  max={100}
+                  step={1}
+                  className="w-full"
+                />
+                <div className="w-10 text-right text-xs">{volume}</div>
+              </div>
+            </div>
+            <div className="flex items-end sm:items-center justify-start sm:justify-end pt-2 sm:pt-0">
+              <Button onClick={handlePreview} variant="outline" className="h-9 text-xs">
+                <Play className="w-4 h-4 mr-1" /> Preview
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Statistics Cards - Responsive Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
