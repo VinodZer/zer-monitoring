@@ -65,13 +65,13 @@ export class StaleDataDetector {
 
   // Thresholds in seconds (mapped by marketType; mirrors Python intent by exchange family)
   private thresholds: Record<string, number> = {
-    equity: 10, // NSE/BSE/NFO/BFO
-    derivatives: 10, // alias if needed
+    equity: 15, // NSE/BSE/NFO/BFO
+    derivatives: 15, // alias if needed
     currency: 300, // CDS/BCD
     commodity: 180, // MCX
   }
 
-  private indexThreshold = 20 // seconds
+  private indexThreshold = 15 // seconds
 
   constructor(opts?: {
     thresholds?: Partial<Record<string, number>>

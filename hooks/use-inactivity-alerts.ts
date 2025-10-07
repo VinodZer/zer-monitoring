@@ -5,6 +5,7 @@ import type { TickData } from "./use-tick-data"
 import { shouldAlertsBeActive, getDetailedMarketStatus, isInMarketCloseBuffer } from "@/utils/market-timings"
 import { StaleDataDetector } from "@/lib/stale-data-detector"
 import { depthPlusLtp } from "@/utils/depth-ltp"
+import { getExchangeFromName, getDefaultDpltpDuration } from "@/utils/exchange-detection"
 
 /**
  * Resolve instrument name for a TickData entry. Prefers tradingsymbol when
@@ -71,7 +72,7 @@ interface SymbolState {
 
 const DEFAULT_CONFIG: InactivityAlertConfig = {
   enabled: false,
-  duration: 30,
+  duration: 15,
   dpltpEnabled: true,
   dpltpDuration: 60,
   respectMarketHours: true,
@@ -81,69 +82,6 @@ const DEFAULT_CONFIG: InactivityAlertConfig = {
 const INDEX_TOKENS = new Set<number>([265, 256265, 260105, 26009, 12839])
 const INDEX_NAMES = new Set<string>(["SENSEX", "NIFTY 50", "NIFTY", "NIFTY BANK", "BANKNIFTY", "BANKEX"])
 const isIndexSymbol = (token: number, name: string) => INDEX_TOKENS.has(token) || INDEX_NAMES.has(name)
-
-// Exchange classifier (avoid importing from components)
-/**
- * Infer exchange code from an instrument name string.
- * @param instrumentName - Name or symbol of the instrument
- * @returns One of the exchange identifiers used by the system
- */
-function getExchangeFromName(instrumentName: string): "NSE" | "BSE" | "NFO" | "BFO" | "CDS" | "BCD" | "MCX" {
-  const name = instrumentName.toUpperCase()
-  // Currency
-  if (
-    name.includes("USD") ||
-    name.includes("EUR") ||
-    name.includes("GBP") ||
-    name.includes("JPY") ||
-    name.includes("INR")
-  ) {
-    return "CDS"
-  }
-  // Commodity keywords
-  if (
-    name.includes("CRUDE") ||
-    name.includes("GOLD") ||
-    name.includes("SILVER") ||
-    name.includes("COPPER") ||
-    name.includes("ZINC") ||
-    name.includes("ALUMINIUM") ||
-    name.includes("LEAD") ||
-    name.includes("NICKEL") ||
-    name.includes("NATURALGAS")
-  ) {
-    return "MCX"
-  }
-
-  // Derivatives detection: FUT, CE, PE or month codes
-  const isDerivative =
-    name.includes("FUT") || /(?:^|[^A-Z])(CE|PE)(?:$)/.test(name) || /\d{2}[A-Z]{3}(FUT|CE|PE)/.test(name)
-  if (isDerivative) {
-    return name.includes("SENSEX") ? "BFO" : "NFO"
-  }
-
-  // Spot indices (no derivatives suffix)
-  if (name.includes("SENSEX")) return "BSE"
-  if (name.includes("NIFTY")) return "NSE"
-
-  // Explicit hints
-  if (name.includes("BSE")) return "BSE"
-  if (name.includes("BFO")) return "BFO"
-  if (name.includes("NFO")) return "NFO"
-
-  // Default equity on NSE/BSE (prefer NSE as feed usually from NSE)
-  return "NSE"
-}
-
-const DEFAULT_DPLTP_THRESHOLDS: Record<string, number> = {
-  NSE: 10,
-  BSE: 10,
-  NFO: 10,
-  BFO: 10,
-  CDS: 300,
-  BCD: 300,
-  MCX: 180,
-}
 
 /**
  * Produce a default InactivityAlertConfig for an instrument based on simple
@@ -157,23 +95,25 @@ function defaultConfigForInstrument(token: number, instrumentName: string): Inac
   const name = instrumentName.toUpperCase()
 
   if (isIndexSymbol(token, instrumentName)) {
-    return { enabled: true, duration: 20, dpltpEnabled: false, dpltpDuration: 0, respectMarketHours: true }
+    return { enabled: true, duration: 15, dpltpEnabled: false, dpltpDuration: 0, respectMarketHours: true }
   }
 
-  // Specific overrides: set defaults to 20 seconds for certain instruments/exchanges
+  // Specific overrides: set defaults to 15 seconds for certain instruments/exchanges
   const specialTickers = ["BHEL", "RELIANCE", "NIFTY", "SENSEX"]
   const specialExchanges = ["NFO", "BFO"]
 
   const matchesTicker = specialTickers.some((t) => name.includes(t))
   const matchesExchange = specialExchanges.some((e) => name.includes(e))
 
+  const exchange = getExchangeFromName(instrumentName)
+  const durationDefault = exchange === "MCX" || exchange === "CDS" ? 30 : 15
+  const dpltpDefault = getDefaultDpltpDuration(exchange)
+
   if (matchesTicker || matchesExchange) {
-    return { enabled: false, duration: 20, dpltpEnabled: true, dpltpDuration: 20, respectMarketHours: true }
+    return { enabled: false, duration: durationDefault, dpltpEnabled: true, dpltpDuration: dpltpDefault, respectMarketHours: true }
   }
 
-  const ex = getExchangeFromName(instrumentName)
-  const d = DEFAULT_DPLTP_THRESHOLDS[ex] ?? 60
-  return { enabled: false, duration: 30, dpltpEnabled: true, dpltpDuration: d, respectMarketHours: true }
+  return { enabled: false, duration: durationDefault, dpltpEnabled: true, dpltpDuration: dpltpDefault, respectMarketHours: true }
 }
 
 /**

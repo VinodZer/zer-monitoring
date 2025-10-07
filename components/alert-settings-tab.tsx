@@ -15,6 +15,7 @@ import type { TickData } from "@/hooks/use-tick-data"
 import type { InactivityAlertConfig } from "@/hooks/use-inactivity-alerts"
 import { getInstrumentName, getExchange } from "./market-data-grid"
 import { getDetailedMarketStatus } from "@/utils/market-timings"
+import { getDefaultDpltpDuration, getExchangeFromName } from "@/utils/exchange-detection"
 
 interface AlertSettingsTabProps {
   ticks: TickData[]
@@ -51,6 +52,10 @@ const SymbolCard = memo(function SymbolCard({
   config: InactivityAlertConfig
   onConfigChange: (config: InactivityAlertConfig) => void
 }) {
+  const exchangeCode = getExchangeFromName(symbol.name)
+  const durationFallback = exchangeCode === "MCX" || exchangeCode === "CDS" ? 30 : 15
+  const dpltpFallback = getDefaultDpltpDuration(exchangeCode)
+
   return (
     <Card>
       <CardContent className="p-3 space-y-2">
@@ -98,9 +103,10 @@ const SymbolCard = memo(function SymbolCard({
                   onChange={(e) =>
                     onConfigChange({
                       ...config,
-                      duration: Math.max(0, Number.parseInt(e.target.value) || 20),
+                      duration: Math.max(0, Number.parseInt(e.target.value) || durationFallback),
                     })
                   }
+                  placeholder={String(durationFallback)}
                   min="0"
                   max="1000"
                   className="text-xs h-8"
@@ -127,17 +133,18 @@ const SymbolCard = memo(function SymbolCard({
                 <Label className="text-xs font-medium text-green-900">Duration (s)</Label>
                 <Input
                   type="number"
-                  value={config.dpltpDuration || 60}
+                  value={config.dpltpDuration || dpltpFallback}
                   onChange={(e) =>
                     onConfigChange({
                       ...config,
-                      dpltpDuration: Math.max(0, Number.parseInt(e.target.value) || 60),
+                      dpltpDuration: Math.max(0, Number.parseInt(e.target.value) || dpltpFallback),
                     })
                   }
                   min="0"
                   max="1000"
                   className="text-xs h-8"
                   disabled={!config.dpltpEnabled}
+                  placeholder={String(dpltpFallback)}
                 />
               </div>
             </div>
@@ -218,14 +225,14 @@ export function AlertSettingsTab({
   const getEffectiveConfig = (symbol: SymbolInfo): InactivityAlertConfig => {
     if (symbol.config) return symbol.config
     const isIdx = symbol.isIndex
-    const exchange = symbol.exchange.toUpperCase()
+    const exchangeCode = getExchangeFromName(symbol.name)
     if (isIdx) {
       console.log("[v0] Getting effective config for index", symbol.name, "defaulting to enabled: true")
-      return { enabled: true, duration: 20, respectMarketHours: true, dpltpEnabled: false, dpltpDuration: 0 }
+      return { enabled: true, duration: 15, respectMarketHours: true, dpltpEnabled: false, dpltpDuration: 0 }
     }
-    const defaults: Record<string, number> = { NSE: 10, BSE: 10, NFO: 10, BFO: 10, CDS: 300, BCD: 300, MCX: 180 }
-    const dpltp = defaults[exchange] ?? 60
-    return { enabled: false, duration: 30, respectMarketHours: true, dpltpEnabled: true, dpltpDuration: dpltp }
+    const dpltp = getDefaultDpltpDuration(exchangeCode)
+    const durationDefault = exchangeCode === "MCX" || exchangeCode === "CDS" ? 30 : 15
+    return { enabled: false, duration: durationDefault, respectMarketHours: true, dpltpEnabled: true, dpltpDuration: dpltp }
   }
 
   // Global alert sound settings (persist to localStorage)
@@ -444,6 +451,9 @@ export function AlertSettingsTab({
             <div className="space-y-2 p-3">
               {availableSymbols.map((symbol) => {
                 const config = getEffectiveConfig(symbol)
+                const exchangeCode = getExchangeFromName(symbol.name)
+                const durationFallback = exchangeCode === "MCX" || exchangeCode === "CDS" ? 30 : 15
+                const dpltpFallback = getDefaultDpltpDuration(exchangeCode)
 
                 return (
                   <Card key={symbol.token} className="transform-gpu">
@@ -496,14 +506,14 @@ export function AlertSettingsTab({
                                 onChange={(e) =>
                                   handleSymbolConfigChange(symbol.token, {
                                     ...config,
-                                    duration: Math.max(0, Number.parseInt(e.target.value) || 20),
+                                    duration: Math.max(0, Number.parseInt(e.target.value) || durationFallback),
                                   })
                                 }
                                 min="0"
                                 max="1000"
                                 className="text-xs h-8"
                                 disabled={!config.enabled && !symbol.isIndex}
-                                placeholder="20"
+                                placeholder={String(durationFallback)}
                               />
                             </div>
                           </div>
@@ -572,7 +582,7 @@ export function AlertSettingsTab({
                           <div className="space-y-1 text-xs text-gray-600">
                             {config.enabled && <div>• LTP alert if price unchanged for {config.duration}s</div>}
                             {config.dpltpEnabled && (
-                              <div>• Depth + LTP alert if price unchanged for {config.dpltpDuration || 60}s</div>
+                              <div>• Depth + LTP alert if price unchanged for {config.dpltpDuration || dpltpFallback}s</div>
                             )}
                             <div className="text-gray-500">
                               {config.respectMarketHours ? "(trading hours only)" : "(24/7 monitoring)"}
@@ -606,6 +616,8 @@ export function AlertSettingsTab({
               <TableBody>
                 {availableSymbols.map((symbol) => {
                   const config = getEffectiveConfig(symbol)
+                  const exchangeCode = getExchangeFromName(symbol.name)
+                  const durationFallback = exchangeCode === "MCX" || exchangeCode === "CDS" ? 30 : 15
 
                   return (
                     <TableRow key={symbol.token}>
@@ -654,13 +666,13 @@ export function AlertSettingsTab({
                               onChange={(e) =>
                                 handleSymbolConfigChange(symbol.token, {
                                   ...config,
-                                  duration: Math.max(0, Number.parseInt(e.target.value) || 20),
+                                  duration: Math.max(0, Number.parseInt(e.target.value) || durationFallback),
                                 })
                               }
                               min="0"
                               max="1000"
                               className="w-16 text-xs mx-auto"
-                              placeholder="20"
+                              placeholder={String(durationFallback)}
                               disabled={false}
                             />
                           )}
@@ -716,7 +728,7 @@ export function AlertSettingsTab({
                       <TableCell>
                         {config.enabled || config.dpltpEnabled ? (
                           <div className="space-y-1 text-xs text-gray-600">
-                            {config.enabled && <div>• LTP: {config.duration}s</div>}
+                            {config.enabled && <div>��� LTP: {config.duration}s</div>}
                             {config.dpltpEnabled && <div>• Depth+LTP: {config.dpltpDuration || 60}s</div>}
                             <div className="text-gray-500">
                               {config.respectMarketHours ? "(trading hours)" : "(24/7)"}

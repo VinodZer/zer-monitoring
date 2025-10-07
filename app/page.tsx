@@ -158,7 +158,7 @@ export default function MarketDashboard() {
                       <div className="flex items-center gap-1 bg-red-50 dark:bg-red-900/40 px-2 sm:px-2.5 rounded-md py-0.5 transition-colors">
                         <Clock className="w-3 sm:w-4 h-3 sm:h-4 text-red-600 dark:text-red-400" />
                         <span className="text-gray-700 dark:text-gray-300 font-medium text-[10px] sm:text-xs">
-                          Retry in {typeof nextRetryIn === "number" ? Math.max(0, nextRetryIn) : 10}s
+                          Retry in {typeof nextRetryIn === "number" ? Math.max(0, nextRetryIn) : 0}s
                         </span>
                       </div>
                     )}
@@ -277,7 +277,7 @@ export default function MarketDashboard() {
                           </span>
                           {!isConnected && (
                             <span className="ml-2 text-[10px] sm:text-xs text-red-600 dark:text-red-400">
-                              Retry in {typeof nextRetryIn === "number" ? Math.max(0, nextRetryIn) : 10}s
+                              Retry in {typeof nextRetryIn === "number" ? Math.max(0, nextRetryIn) : 0}s
                             </span>
                           )}
                         </div>

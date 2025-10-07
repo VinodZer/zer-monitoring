@@ -380,6 +380,17 @@ export function useTickData() {
     }
   }, [])
 
+  // Schedule a single reconnect attempt and countdown (no TDZ on connect function)
+  const scheduleReconnectOnce = useCallback((delayMs: number, connect: () => void) => {
+    if (reconnectTimeoutRef.current) return
+    setNextRetryAt(Date.now() + delayMs)
+    startDisconnectSound()
+    reconnectTimeoutRef.current = setTimeout(() => {
+      reconnectTimeoutRef.current = null
+      connect()
+    }, delayMs)
+  }, [startDisconnectSound])
+
   // Retry countdown updater
   useEffect(() => {
     if (nextRetryAt == null) {
@@ -424,10 +435,7 @@ export function useTickData() {
           setIsConnected(false)
           setConnectionStatus("disconnected")
           const delay = 10000
-          if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
-          setNextRetryAt(Date.now() + delay)
-          startDisconnectSound()
-          reconnectTimeoutRef.current = setTimeout(connectToSSE, delay)
+          scheduleReconnectOnce(delay, connectToSSE)
           addAlert("connection", "Connection timeout", "high")
         }
       }, 8000)
@@ -440,6 +448,10 @@ export function useTickData() {
         setNextRetryAt(null)
         setRetryCountdown(null)
         stopDisconnectSound()
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current)
+          reconnectTimeoutRef.current = null
+        }
         connectionAttempts.current = 0
         addAlert("connection", "Successfully connected to tick stream", "low")
       }
@@ -506,24 +518,18 @@ export function useTickData() {
         setConnectionStatus("disconnected")
 
         const delay = 10000
-        setNextRetryAt(Date.now() + delay)
-        startDisconnectSound()
+        try { eventSource.close() } catch {}
+        scheduleReconnectOnce(delay, connectToSSE)
         addAlert("connection", `Connection lost. Reconnecting in ${delay / 1000}s...`, "high")
-
-        if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
-        reconnectTimeoutRef.current = setTimeout(connectToSSE, delay)
       }
     } catch (error) {
       addDebugInfo(`Failed to create SSE connection: ${error}`)
       setConnectionStatus("disconnected")
       const delay = 10000
-      setNextRetryAt(Date.now() + delay)
-      startDisconnectSound()
+      scheduleReconnectOnce(delay, connectToSSE)
       addAlert("connection", `Connection failed. Reconnecting in ${delay / 1000}s...`, "high")
-      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
-      reconnectTimeoutRef.current = setTimeout(connectToSSE, delay)
     }
-  }, [addAlert, addDebugInfo, processTickData])
+  }, [addAlert, addDebugInfo, processTickData, scheduleReconnectOnce])
 
   useEffect(() => {
     connectToSSE()
