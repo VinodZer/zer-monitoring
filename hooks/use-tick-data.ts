@@ -550,9 +550,13 @@ export function useTickData() {
       setConnectionStatus("disconnected")
       const delay = 10000
       scheduleReconnectOnce(delay, connectToSSE)
-      addAlert("connection", `Connection failed. Reconnecting in ${delay / 1000}s...`, "high")
+      if (shouldEmitConnectionAlerts()) {
+        addAlert("connection", `Connection failed. Reconnecting in ${delay / 1000}s...`, "high")
+      } else {
+        addDebugInfo("Connection failed outside trading hours - alert suppressed")
+      }
     }
-  }, [addAlert, addDebugInfo, processTickData, scheduleReconnectOnce])
+  }, [addAlert, addDebugInfo, processTickData, scheduleReconnectOnce, shouldEmitConnectionAlerts])
 
   useEffect(() => {
     connectToSSE()
