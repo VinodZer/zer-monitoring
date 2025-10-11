@@ -341,6 +341,13 @@ export function useTickData() {
     return table[type] || table.square
   }
 
+  const shouldEmitConnectionAlerts = useCallback(() => {
+    const status = getCurrentMarketStatus("equity")
+    if (!status.isOpen) return false
+    if (status.session && status.session !== "Open") return false
+    return true
+  }, [])
+
   const startDisconnectSound = useCallback(() => {
     if (!audioContextRef.current) return
     const ctx = audioContextRef.current
@@ -380,16 +387,22 @@ export function useTickData() {
     }
   }, [])
 
-  // Schedule a single reconnect attempt and countdown (no TDZ on connect function)
-  const scheduleReconnectOnce = useCallback((delayMs: number, connect: () => void) => {
-    if (reconnectTimeoutRef.current) return
-    setNextRetryAt(Date.now() + delayMs)
-    startDisconnectSound()
-    reconnectTimeoutRef.current = setTimeout(() => {
-      reconnectTimeoutRef.current = null
-      connect()
-    }, delayMs)
-  }, [startDisconnectSound])
+  const scheduleReconnectOnce = useCallback(
+    (delayMs: number, connect: () => void) => {
+      if (reconnectTimeoutRef.current) return
+      setNextRetryAt(Date.now() + delayMs)
+      if (shouldEmitConnectionAlerts()) {
+        startDisconnectSound()
+      } else {
+        stopDisconnectSound()
+      }
+      reconnectTimeoutRef.current = setTimeout(() => {
+        reconnectTimeoutRef.current = null
+        connect()
+      }, delayMs)
+    },
+    [shouldEmitConnectionAlerts, startDisconnectSound, stopDisconnectSound],
+  )
 
   // Retry countdown updater
   useEffect(() => {
