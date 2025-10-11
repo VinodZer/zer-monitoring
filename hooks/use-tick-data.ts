@@ -449,7 +449,11 @@ export function useTickData() {
           setConnectionStatus("disconnected")
           const delay = 10000
           scheduleReconnectOnce(delay, connectToSSE)
-          addAlert("connection", "Connection timeout", "high")
+          if (shouldEmitConnectionAlerts()) {
+            addAlert("connection", "Connection timeout", "high")
+          } else {
+            addDebugInfo("Connection timeout outside trading hours - alert suppressed")
+          }
         }
       }, 8000)
 
