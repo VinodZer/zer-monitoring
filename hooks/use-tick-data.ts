@@ -535,9 +535,15 @@ export function useTickData() {
         setConnectionStatus("disconnected")
 
         const delay = 10000
-        try { eventSource.close() } catch {}
+        try {
+          eventSource.close()
+        } catch {}
         scheduleReconnectOnce(delay, connectToSSE)
-        addAlert("connection", `Connection lost. Reconnecting in ${delay / 1000}s...`, "high")
+        if (shouldEmitConnectionAlerts()) {
+          addAlert("connection", `Connection lost. Reconnecting in ${delay / 1000}s...`, "high")
+        } else {
+          addDebugInfo("Connection lost outside trading hours - alert suppressed")
+        }
       }
     } catch (error) {
       addDebugInfo(`Failed to create SSE connection: ${error}`)
