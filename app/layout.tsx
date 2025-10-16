@@ -72,6 +72,8 @@ export default function RootLayout({
         >
           {/* Global client-side guard to suppress noisy third-party errors (e.g., FullStory) */}
           <GlobalErrorGuard />
+          {/* PWA service worker registration and mobile optimizations */}
+          <PWARegister />
           {children}
         </ThemeProvider>
       </body>
