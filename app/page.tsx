@@ -328,7 +328,7 @@ export default function MarketDashboard() {
 
           <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-4">
             {!isNavHidden && (
-              <TabsList className="bg-white border text-sm">
+              <TabsList className="hidden md:flex bg-white border text-sm">
                 <TabsTrigger value="kite" className="flex items-center gap-1.5 text-xs sm:text-sm font-medium">
                   <ActivityIcon className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
                   Kite
