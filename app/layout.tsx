@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { ThemeProvider } from '@/components/theme-provider'
 import GlobalErrorGuard from '@/components/global-error-guard'
+import { PWARegister } from '@/components/pwa-register'
 
 export const metadata: Metadata = {
   title: 'Market Ticks Monitor - Real-Time Trading Dashboard',
