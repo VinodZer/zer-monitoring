@@ -40,7 +40,7 @@ function normalizeToken(val: number | string): string {
 export function MiniDepthLtpSparkline({ ticks, instrumentToken, height = 18, className = "" }: MiniDepthLtpSparklineProps) {
   const vbWidth = 120
   const vbHeight = height
-  const pad = Math.max(2, Math.round(height * 0.15))
+  const pad = 0
   const innerW = vbWidth - pad * 2
   const innerH = vbHeight - pad * 2
 

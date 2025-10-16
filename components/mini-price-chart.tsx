@@ -123,7 +123,7 @@ export function MiniPriceChart({
     const chartWidth = 300
     const chartHeight = height
 
-    const chartPadding = Math.max(4, height * 0.08)
+    const chartPadding = 0
     const innerHeight = chartHeight - chartPadding * 2
     const innerWidth = chartWidth - chartPadding * 2
 
