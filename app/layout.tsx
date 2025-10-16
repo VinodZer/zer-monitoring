@@ -8,6 +8,7 @@ export const metadata: Metadata = {
   description: 'Professional real-time market data monitoring with inactivity alerts',
   generator: 'v0.dev',
   applicationName: 'Market Ticks Monitor',
+  manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -15,6 +16,20 @@ export const metadata: Metadata = {
   },
   formatDetection: {
     telephone: false,
+  },
+  openGraph: {
+    type: 'website',
+    title: 'Market Ticks Monitor',
+    description: 'Professional real-time market data monitoring with inactivity alerts',
+    url: 'https://marketticks.com',
+    images: [
+      {
+        url: 'https://cdn.builder.io/api/v1/image/assets%2F212686917e6a43feac2002a1e679ce72%2F4232d9a3a4bc400a91ef28288c1e35f6?format=webp&width=1200',
+        width: 1200,
+        height: 630,
+        alt: 'Market Ticks Monitor Dashboard',
+      },
+    ],
   },
   icons: {
     icon: [
