@@ -25,6 +25,7 @@ import { useInactivityAlerts } from "@/hooks/use-inactivity-alerts"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { DebugDashboard } from "@/components/debug-dashboard"
 import DashboardGuard from "@/components/dashboard-guard"
+import { MobileBottomNav } from "@/components/mobile-bottom-nav"
 
 /**
  * MarketDashboard is the main page-level component that composes the live
