@@ -454,6 +454,18 @@ export default function MarketDashboard() {
           </Tabs>
         </div>
       </div>
+
+      <MobileBottomNav
+        selectedTab={selectedTab}
+        onTabChange={setSelectedTab}
+        instrumentCount={uniqueInstruments.length}
+        alertCount={enabledAlertsCount}
+        alertingCount={inactiveSymbols.size}
+        isConnected={isConnected}
+        connectionStatus={connectionStatus}
+        nextRetryIn={nextRetryIn}
+      />
+
       <DashboardGuard targetId="dashboard-root" />
     </>
   )
