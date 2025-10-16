@@ -185,4 +185,92 @@
   .text-enhanced {
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   }
+
+  /* Mobile-specific utilities */
+  @media (max-width: 768px) {
+    /* Touch-friendly button sizing - 44x44px minimum */
+    button, [role="button"], input[type="button"], input[type="submit"], .touch-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
+
+    /* Avoid 100vh issues on mobile (includes address bar) */
+    html, body {
+      height: 100%;
+    }
+
+    /* Bottom navigation safe area padding */
+    body {
+      padding-bottom: max(1rem, var(--safe-area-inset-bottom));
+    }
+
+    /* Ensure inputs are readable without zoom on iOS */
+    input, textarea, select, button {
+      font-size: 16px;
+    }
+
+    /* Better touch spacing for form elements */
+    input, textarea, select {
+      padding: 12px;
+      border-radius: 8px;
+    }
+
+    /* Optimize scrolling performance */
+    .scroll-smooth {
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Prevent text selection on long press for mobile */
+    .no-select {
+      -webkit-user-select: none;
+      user-select: none;
+    }
+  }
+
+  /* Smooth scrolling for better mobile feel */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Prevent layout shift from scrollbar */
+  body {
+    overflow-y: scroll;
+  }
+
+  /* Touch-friendly card interactions */
+  .card-touch {
+    @apply cursor-pointer transition-all duration-200 active:scale-95;
+  }
+
+  /* Improved focus states for mobile */
+  @media (hover: none) and (pointer: coarse) {
+    button:focus,
+    [role="button"]:focus,
+    a:focus {
+      outline: 2px solid var(--ring);
+      outline-offset: 2px;
+    }
+  }
+
+  /* Mobile gesture-friendly spacing */
+  .gesture-padding {
+    @apply p-4 sm:p-6;
+  }
+
+  /* Safe area padding helpers */
+  .safe-area-top {
+    padding-top: max(1rem, var(--safe-area-inset-top));
+  }
+
+  .safe-area-bottom {
+    padding-bottom: max(1rem, var(--safe-area-inset-bottom));
+  }
+
+  .safe-area-left {
+    padding-left: max(1rem, var(--safe-area-inset-left));
+  }
+
+  .safe-area-right {
+    padding-right: max(1rem, var(--safe-area-inset-right));
+  }
 }
