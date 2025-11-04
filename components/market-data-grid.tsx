@@ -617,7 +617,7 @@ const InstrumentCard = memo(function InstrumentCard({
                     {formatVolume(instrument.volume)}
                   </td>
                   <td className="text-gray-500 font-semibold py-0.5 border-b border-gray-200 dark:border-gray-700 text-center">
-                    Depth+LTP AVG
+                    AVG
                   </td>
                   <td className="font-bold py-0.5 border-b border-gray-200 dark:border-gray-700 text-center whitespace-nowrap tabular-nums">
                     {(() => {
