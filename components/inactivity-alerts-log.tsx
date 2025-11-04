@@ -487,8 +487,7 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
                         <TableHead className="cursor-pointer hover:bg-muted/30 dark:hover:bg-muted/30" onClick={() => handleSort("symbol")}>
                           <div className="flex items-center">Symbol {getSortIcon("symbol")}</div>
                         </TableHead>
-                        <TableHead>Baseline Price</TableHead>
-                        <TableHead>Price Range</TableHead>
+                        <TableHead>LTP at Alert Time</TableHead>
                         <TableHead>Current Price</TableHead>
                         <TableHead className="cursor-pointer hover:bg-muted/30 dark:hover:bg-muted/30" onClick={() => handleSort("duration")}>
                           <div className="flex items-center">Duration {getSortIcon("duration")}</div>
@@ -503,7 +502,9 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
                     <TableBody>
                       {filteredAndSortedAlerts.map((alert) => {
                         const severity = getAlertSeverity(alert)
-                        const priceChange = alert.currentPrice - alert.baselinePrice
+                        const latestLtp = getLatestLtp(alert.instrumentToken)
+                        const currentLtp = latestLtp !== null ? latestLtp : alert.currentPrice
+                        const priceChange = currentLtp - alert.baselinePrice
 
                         return (
                           <TableRow key={alert.id} className={`${alert.checked ? 'opacity-60 bg-muted/40 dark:bg-muted/20' : ''}`}>
@@ -520,18 +521,10 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
                             </TableCell>
                             <TableCell className="font-medium">{alert.instrumentName}</TableCell>
                             <TableCell className="font-mono">₹{formatPrice(alert.baselinePrice)}</TableCell>
-                            <TableCell className="font-mono text-sm">
-                              <div className="flex flex-col">
-                                <span>{formatPriceRange(alert.priceRange.min, alert.priceRange.max)}</span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">
-                                  Range: ₹{formatPrice(alert.priceRange.max - alert.priceRange.min)}
-                                </span>
-                              </div>
-                            </TableCell>
                             <TableCell className="font-mono">
                               <div className="flex items-center gap-1">
-                                {getPriceMovementIcon(alert.baselinePrice, alert.currentPrice)}
-                                <span>₹{formatPrice(alert.currentPrice)}</span>
+                                {getPriceMovementIcon(alert.baselinePrice, currentLtp)}
+                                <span>₹{formatPrice(currentLtp)}</span>
                                 {priceChange !== 0 && (
                                   <span className={`text-xs ${priceChange > 0 ? "text-green-600" : "text-red-600"}`}>
                                     ({priceChange > 0 ? "+" : ""}
