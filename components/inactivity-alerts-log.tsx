@@ -520,10 +520,10 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
                               })}
                             </TableCell>
                             <TableCell className="font-medium">{alert.instrumentName}</TableCell>
-                            <TableCell className="font-mono">₹{formatPrice(alert.baselinePrice)}</TableCell>
+                            <TableCell className="font-mono">₹{formatPrice(alert.ltpAtTrigger)}</TableCell>
                             <TableCell className="font-mono">
                               <div className="flex items-center gap-1">
-                                {getPriceMovementIcon(alert.baselinePrice, currentLtp)}
+                                {getPriceMovementIcon(alert.ltpAtTrigger, currentLtp)}
                                 <span>₹{formatPrice(currentLtp)}</span>
                                 {priceChange !== 0 && (
                                   <span className={`text-xs ${priceChange > 0 ? "text-green-600" : "text-red-600"}`}>
