@@ -325,6 +325,7 @@ export function useInactivityAlerts(ticks: TickData[]) {
         missingSeconds: typeof missingSeconds === "number" ? Math.round(missingSeconds) : undefined,
         baselinePrice: alertType === "ltp" ? state.ltpBaseline : state.dpltpBaseline,
         currentPrice: alertType === "ltp" ? currentLtp : currentComposite,
+        ltpAtTrigger: state.ltpBaseline,
         priceRange,
         marketSession: marketStatus.session,
         marketType: marketStatus.marketType,
