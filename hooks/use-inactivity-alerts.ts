@@ -319,7 +319,7 @@ export function useInactivityAlerts(ticks: TickData[]) {
         id: `${hookId}-${crypto.randomUUID()}`,
         instrumentToken: tick.instrument_token,
         instrumentName,
-        exchange: tick.exchange,
+        exchange: tick.exchange || getExchangeFromName(instrumentName),
         timestamp: Date.now(),
         duration:
           alertType === "ltp"
