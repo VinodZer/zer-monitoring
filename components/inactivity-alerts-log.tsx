@@ -27,23 +27,35 @@ import {
   ChevronUp,
 } from "lucide-react"
 import type { InactivityAlert } from "@/hooks/use-inactivity-alerts"
+import type { TickData } from "@/hooks/use-tick-data"
 
 interface InactivityAlertsLogProps {
   alerts: InactivityAlert[]
   onClearAlerts: () => void
   onMarkAlertAsChecked: (alertId: string) => void
+  ticks?: TickData[]
 }
 
 type SortField = "timestamp" | "symbol" | "severity" | "duration" | "priceChange"
 type SortDirection = "asc" | "desc"
 type SeverityFilter = "all" | "high" | "medium" | "low"
 
-export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecked }: InactivityAlertsLogProps) {
+export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecked, ticks = [] }: InactivityAlertsLogProps) {
   const [sortField, setSortField] = useState<SortField>("timestamp")
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all")
   const [searchTerm, setSearchTerm] = useState("")
   const [expandedCard, setExpandedCard] = useState<string | null>(null)
+
+  // Get the latest LTP for a given instrument token
+  const getLatestLtp = (instrumentToken: number): number | null => {
+    for (let i = ticks.length - 1; i >= 0; i--) {
+      if (ticks[i].instrument_token === instrumentToken && ticks[i].last_price > 0) {
+        return ticks[i].last_price
+      }
+    }
+    return null
+  }
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("en-IN", {
