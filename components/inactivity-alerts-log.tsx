@@ -482,7 +482,7 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
                     <TableHeader>
                       <TableRow>
                         <TableHead className="cursor-pointer hover:bg-muted/30 dark:hover:bg-muted/30" onClick={() => handleSort("timestamp")}>
-                          <div className="flex items-center">Timestamp {getSortIcon("timestamp")}</div>
+                          <div className="flex items-center" style={{ margin: "auto 0" }}>Timestamp {getSortIcon("timestamp")}</div>
                         </TableHead>
                         <TableHead className="cursor-pointer hover:bg-muted/30 dark:hover:bg-muted/30" onClick={() => handleSort("symbol")}>
                           <div className="flex items-center">Symbol {getSortIcon("symbol")}</div>
