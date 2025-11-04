@@ -5,6 +5,7 @@ import type { TickData } from "./use-tick-data"
 import { shouldAlertsBeActive, getDetailedMarketStatus, isInMarketCloseBuffer } from "@/utils/market-timings"
 import { StaleDataDetector } from "@/lib/stale-data-detector"
 import { depthPlusLtp } from "@/utils/depth-ltp"
+import { getExchangeFromName } from "@/utils/exchange-detection"
 import { getExchangeFromName, getDefaultDpltpDuration } from "@/utils/exchange-detection"
 
 /**
