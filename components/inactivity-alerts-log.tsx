@@ -269,12 +269,12 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
           <div className="grid grid-cols-2 gap-4 mb-3">
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">LTP at Alert Time</p>
-              <span className="font-mono text-sm font-medium text-gray-900 dark:text-gray-100">₹{formatPrice(alert.baselinePrice)}</span>
+              <span className="font-mono text-sm font-medium text-gray-900 dark:text-gray-100">₹{formatPrice(alert.ltpAtTrigger)}</span>
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Current Price</p>
               <div className="flex items-center gap-1">
-                {getPriceMovementIcon(alert.baselinePrice, currentLtp)}
+                {getPriceMovementIcon(alert.ltpAtTrigger, currentLtp)}
                 <span className="font-mono text-sm font-medium text-gray-900 dark:text-gray-100">₹{formatPrice(currentLtp)}</span>
               </div>
               {priceChange !== 0 && (
