@@ -494,7 +494,7 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
                         </TableHead>
 
                         <TableHead className="cursor-pointer hover:bg-muted/30 dark:hover:bg-muted/30" onClick={() => handleSort("severity")}>
-                          <div className="flex items-center">Severity {getSortIcon("severity")}</div>
+                          <div className="flex items-center" style={{ margin: "auto 0" }}>Severity {getSortIcon("severity")}</div>
                         </TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
