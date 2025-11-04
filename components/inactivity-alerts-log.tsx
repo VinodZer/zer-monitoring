@@ -504,7 +504,7 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
                         const severity = getAlertSeverity(alert)
                         const latestLtp = getLatestLtp(alert.instrumentToken)
                         const currentLtp = latestLtp !== null ? latestLtp : alert.currentPrice
-                        const priceChange = currentLtp - alert.baselinePrice
+                        const priceChange = currentLtp - alert.ltpAtTrigger
 
                         return (
                           <TableRow key={alert.id} className={`${alert.checked ? 'opacity-60 bg-muted/40 dark:bg-muted/20' : ''}`}>
