@@ -431,6 +431,7 @@ export default function MarketDashboard() {
                 alerts={inactivityAlerts}
                 onClearAlerts={clearAllAlerts}
                 onMarkAlertAsChecked={markAlertAsChecked}
+                ticks={ticks}
               />
             </TabsContent>
 
