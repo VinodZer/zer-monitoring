@@ -226,6 +226,11 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-lg text-gray-900 dark:text-gray-100">{alert.instrumentName}</span>
+                {alert.exchange && (
+                  <Badge variant="outline" className="text-xs text-gray-600 dark:text-gray-400">
+                    {alert.exchange}
+                  </Badge>
+                )}
                 <Badge variant={alert.alertType === 'dpltp' ? 'default' : 'secondary'} className="text-xs">
                   {alert.alertType === 'dpltp' ? 'Depth+LTP' : 'LTP'}
                 </Badge>
