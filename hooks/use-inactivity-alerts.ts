@@ -49,6 +49,8 @@ export interface InactivityAlert {
   baselinePrice: number
   currentPrice: number
   priceRange: { min: number; max: number }
+  // actual LTP at the moment of trigger (independent of alert type)
+  ltpAtTrigger: number
   marketSession: string
   marketType: string
   checked: boolean
