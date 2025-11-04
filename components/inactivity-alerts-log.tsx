@@ -208,7 +208,9 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
 
   const AlertCard = ({ alert }: { alert: InactivityAlert }) => {
     const severity = getAlertSeverity(alert)
-    const priceChange = alert.currentPrice - alert.baselinePrice
+    const latestLtp = getLatestLtp(alert.instrumentToken)
+    const currentLtp = latestLtp !== null ? latestLtp : alert.currentPrice
+    const priceChange = currentLtp - alert.baselinePrice
     const changePercent = alert.baselinePrice > 0 ? (priceChange / alert.baselinePrice) * 100 : 0
     const isExpanded = expandedCard === alert.id
 
@@ -266,10 +268,14 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
           {/* Price Information */}
           <div className="grid grid-cols-2 gap-4 mb-3">
             <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">LTP at Alert Time</p>
+              <span className="font-mono text-sm font-medium text-gray-900 dark:text-gray-100">₹{formatPrice(alert.baselinePrice)}</span>
+            </div>
+            <div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Current Price</p>
               <div className="flex items-center gap-1">
-                {getPriceMovementIcon(alert.baselinePrice, alert.currentPrice)}
-                <span className="font-mono text-sm font-medium text-gray-900 dark:text-gray-100">₹{formatPrice(alert.currentPrice)}</span>
+                {getPriceMovementIcon(alert.baselinePrice, currentLtp)}
+                <span className="font-mono text-sm font-medium text-gray-900 dark:text-gray-100">₹{formatPrice(currentLtp)}</span>
               </div>
               {priceChange !== 0 && (
                 <span className={`text-xs font-medium ${priceChange > 0 ? "text-green-600" : "text-red-600"}`}>
@@ -277,10 +283,6 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
                   {priceChange.toFixed(2)})
                 </span>
               )}
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Baseline Price</p>
-              <span className="font-mono text-sm text-gray-900 dark:text-gray-100">₹{formatPrice(alert.baselinePrice)}</span>
             </div>
           </div>
 
