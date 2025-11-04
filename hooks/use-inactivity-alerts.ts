@@ -41,6 +41,7 @@ export interface InactivityAlert {
   id: string
   instrumentToken: number
   instrumentName: string
+  exchange?: string
   timestamp: number
   // configured threshold (seconds) that triggered the alert
   duration: number
