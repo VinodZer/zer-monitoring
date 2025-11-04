@@ -526,6 +526,7 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
                               })}
                             </TableCell>
                             <TableCell className="font-medium">{alert.instrumentName}</TableCell>
+                            <TableCell className="text-gray-600 dark:text-gray-400 text-sm">{alert.exchange || '-'}</TableCell>
                             <TableCell className="font-mono">₹{formatPrice(alert.ltpAtTrigger)}</TableCell>
                             <TableCell className="font-mono">
                               <div className="flex items-center gap-1">
