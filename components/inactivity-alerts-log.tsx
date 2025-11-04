@@ -257,7 +257,7 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
                   }}
                   className="w-full h-8 text-sm bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700 font-medium dark:bg-blue-900/20 dark:hover:bg-blue-800/30 dark:border-blue-700 dark:text-blue-300"
                 >
-                  ✓ Mark as Checked
+                  �� Mark as Checked
                 </Button>
               )}
               {alert.checked && (
@@ -492,6 +492,7 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
                         <TableHead className="cursor-pointer hover:bg-muted/30 dark:hover:bg-muted/30" onClick={() => handleSort("symbol")}>
                           <div className="flex items-center" style={{ margin: "auto 0" }}>Symbol {getSortIcon("symbol")}</div>
                         </TableHead>
+                        <TableHead>Exchange</TableHead>
                         <TableHead>LTP at Alert Time</TableHead>
                         <TableHead>Current Price</TableHead>
                         <TableHead className="cursor-pointer hover:bg-muted/30 dark:hover:bg-muted/30" onClick={() => handleSort("duration")}>
