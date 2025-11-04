@@ -210,8 +210,8 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
     const severity = getAlertSeverity(alert)
     const latestLtp = getLatestLtp(alert.instrumentToken)
     const currentLtp = latestLtp !== null ? latestLtp : alert.currentPrice
-    const priceChange = currentLtp - alert.baselinePrice
-    const changePercent = alert.baselinePrice > 0 ? (priceChange / alert.baselinePrice) * 100 : 0
+    const priceChange = currentLtp - alert.ltpAtTrigger
+    const changePercent = alert.ltpAtTrigger > 0 ? (priceChange / alert.ltpAtTrigger) * 100 : 0
     const isExpanded = expandedCard === alert.id
 
     return (
