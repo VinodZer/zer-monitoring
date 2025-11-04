@@ -490,7 +490,7 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
                         <TableHead>LTP at Alert Time</TableHead>
                         <TableHead>Current Price</TableHead>
                         <TableHead className="cursor-pointer hover:bg-muted/30 dark:hover:bg-muted/30" onClick={() => handleSort("duration")}>
-                          <div className="flex items-center">Duration {getSortIcon("duration")}</div>
+                          <div className="flex items-center" style={{ margin: "auto 0" }}>Duration {getSortIcon("duration")}</div>
                         </TableHead>
 
                         <TableHead className="cursor-pointer hover:bg-muted/30 dark:hover:bg-muted/30" onClick={() => handleSort("severity")}>
