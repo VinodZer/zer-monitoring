@@ -180,8 +180,8 @@ export function useInactivityAlerts(ticks: TickData[]) {
 
   // Read global audio preferences from localStorage
   function getAudioPrefs(): { type: string; volume: number } {
-    if (typeof window === "undefined") return { type: "beep", volume: 0.6 }
-    const type = localStorage.getItem("alertSoundType") || "square"
+    if (typeof window === "undefined") return { type: "sine", volume: 0.6 }
+    const type = localStorage.getItem("alertSoundType") || "sine"
     const v = Number.parseInt(localStorage.getItem("alertSoundVolume") || "60")
     const volume = Number.isFinite(v) ? Math.max(0, Math.min(100, v)) / 100 : 0.6
     return { type, volume }
