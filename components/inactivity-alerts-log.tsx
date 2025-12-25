@@ -27,23 +27,35 @@ import {
   ChevronUp,
 } from "lucide-react"
 import type { InactivityAlert } from "@/hooks/use-inactivity-alerts"
+import type { TickData } from "@/hooks/use-tick-data"
 
 interface InactivityAlertsLogProps {
   alerts: InactivityAlert[]
   onClearAlerts: () => void
   onMarkAlertAsChecked: (alertId: string) => void
+  ticks?: TickData[]
 }
 
 type SortField = "timestamp" | "symbol" | "severity" | "duration" | "priceChange"
 type SortDirection = "asc" | "desc"
 type SeverityFilter = "all" | "high" | "medium" | "low"
 
-export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecked }: InactivityAlertsLogProps) {
+export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecked, ticks = [] }: InactivityAlertsLogProps) {
   const [sortField, setSortField] = useState<SortField>("timestamp")
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all")
   const [searchTerm, setSearchTerm] = useState("")
   const [expandedCard, setExpandedCard] = useState<string | null>(null)
+
+  // Get the latest LTP for a given instrument token
+  const getLatestLtp = (instrumentToken: number): number | null => {
+    for (let i = ticks.length - 1; i >= 0; i--) {
+      if (ticks[i].instrument_token === instrumentToken && ticks[i].last_price > 0) {
+        return ticks[i].last_price
+      }
+    }
+    return null
+  }
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("en-IN", {
@@ -196,8 +208,10 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
 
   const AlertCard = ({ alert }: { alert: InactivityAlert }) => {
     const severity = getAlertSeverity(alert)
-    const priceChange = alert.currentPrice - alert.baselinePrice
-    const changePercent = alert.baselinePrice > 0 ? (priceChange / alert.baselinePrice) * 100 : 0
+    const latestLtp = getLatestLtp(alert.instrumentToken)
+    const currentLtp = latestLtp !== null ? latestLtp : alert.currentPrice
+    const priceChange = currentLtp - alert.ltpAtTrigger
+    const changePercent = alert.ltpAtTrigger > 0 ? (priceChange / alert.ltpAtTrigger) * 100 : 0
     const isExpanded = expandedCard === alert.id
 
     return (
@@ -212,6 +226,11 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-lg text-gray-900 dark:text-gray-100">{alert.instrumentName}</span>
+                {alert.exchange && (
+                  <Badge variant="outline" className="text-xs text-gray-600 dark:text-gray-400">
+                    {alert.exchange}
+                  </Badge>
+                )}
                 <Badge variant={alert.alertType === 'dpltp' ? 'default' : 'secondary'} className="text-xs">
                   {alert.alertType === 'dpltp' ? 'Depth+LTP' : 'LTP'}
                 </Badge>
@@ -238,7 +257,7 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
                   }}
                   className="w-full h-8 text-sm bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700 font-medium dark:bg-blue-900/20 dark:hover:bg-blue-800/30 dark:border-blue-700 dark:text-blue-300"
                 >
-                  ✓ Mark as Checked
+                  �� Mark as Checked
                 </Button>
               )}
               {alert.checked && (
@@ -254,10 +273,14 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
           {/* Price Information */}
           <div className="grid grid-cols-2 gap-4 mb-3">
             <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">LTP at Alert Time</p>
+              <span className="font-mono text-sm font-medium text-gray-900 dark:text-gray-100">₹{formatPrice(alert.ltpAtTrigger)}</span>
+            </div>
+            <div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Current Price</p>
               <div className="flex items-center gap-1">
-                {getPriceMovementIcon(alert.baselinePrice, alert.currentPrice)}
-                <span className="font-mono text-sm font-medium text-gray-900 dark:text-gray-100">₹{formatPrice(alert.currentPrice)}</span>
+                {getPriceMovementIcon(alert.ltpAtTrigger, currentLtp)}
+                <span className="font-mono text-sm font-medium text-gray-900 dark:text-gray-100">₹{formatPrice(currentLtp)}</span>
               </div>
               {priceChange !== 0 && (
                 <span className={`text-xs font-medium ${priceChange > 0 ? "text-green-600" : "text-red-600"}`}>
@@ -265,10 +288,6 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
                   {priceChange.toFixed(2)})
                 </span>
               )}
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Baseline Price</p>
-              <span className="font-mono text-sm text-gray-900 dark:text-gray-100">₹{formatPrice(alert.baselinePrice)}</span>
             </div>
           </div>
 
@@ -468,20 +487,20 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
                     <TableHeader>
                       <TableRow>
                         <TableHead className="cursor-pointer hover:bg-muted/30 dark:hover:bg-muted/30" onClick={() => handleSort("timestamp")}>
-                          <div className="flex items-center">Timestamp {getSortIcon("timestamp")}</div>
+                          <div className="flex items-center" style={{ margin: "auto 0" }}>Timestamp {getSortIcon("timestamp")}</div>
                         </TableHead>
                         <TableHead className="cursor-pointer hover:bg-muted/30 dark:hover:bg-muted/30" onClick={() => handleSort("symbol")}>
-                          <div className="flex items-center">Symbol {getSortIcon("symbol")}</div>
+                          <div className="flex items-center" style={{ margin: "auto 0" }}>Symbol {getSortIcon("symbol")}</div>
                         </TableHead>
-                        <TableHead>Baseline Price</TableHead>
-                        <TableHead>Price Range</TableHead>
+                        <TableHead>Exchange</TableHead>
+                        <TableHead>LTP at Alert Time</TableHead>
                         <TableHead>Current Price</TableHead>
                         <TableHead className="cursor-pointer hover:bg-muted/30 dark:hover:bg-muted/30" onClick={() => handleSort("duration")}>
-                          <div className="flex items-center">Duration {getSortIcon("duration")}</div>
+                          <div className="flex items-center" style={{ margin: "auto 0" }}>Duration {getSortIcon("duration")}</div>
                         </TableHead>
 
                         <TableHead className="cursor-pointer hover:bg-muted/30 dark:hover:bg-muted/30" onClick={() => handleSort("severity")}>
-                          <div className="flex items-center">Severity {getSortIcon("severity")}</div>
+                          <div className="flex items-center" style={{ margin: "auto 0" }}>Severity {getSortIcon("severity")}</div>
                         </TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
@@ -489,7 +508,9 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
                     <TableBody>
                       {filteredAndSortedAlerts.map((alert) => {
                         const severity = getAlertSeverity(alert)
-                        const priceChange = alert.currentPrice - alert.baselinePrice
+                        const latestLtp = getLatestLtp(alert.instrumentToken)
+                        const currentLtp = latestLtp !== null ? latestLtp : alert.currentPrice
+                        const priceChange = currentLtp - alert.ltpAtTrigger
 
                         return (
                           <TableRow key={alert.id} className={`${alert.checked ? 'opacity-60 bg-muted/40 dark:bg-muted/20' : ''}`}>
@@ -505,19 +526,12 @@ export function InactivityAlertsLog({ alerts, onClearAlerts, onMarkAlertAsChecke
                               })}
                             </TableCell>
                             <TableCell className="font-medium">{alert.instrumentName}</TableCell>
-                            <TableCell className="font-mono">₹{formatPrice(alert.baselinePrice)}</TableCell>
-                            <TableCell className="font-mono text-sm">
-                              <div className="flex flex-col">
-                                <span>{formatPriceRange(alert.priceRange.min, alert.priceRange.max)}</span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">
-                                  Range: ₹{formatPrice(alert.priceRange.max - alert.priceRange.min)}
-                                </span>
-                              </div>
-                            </TableCell>
+                            <TableCell className="text-gray-600 dark:text-gray-400 text-sm">{alert.exchange || '-'}</TableCell>
+                            <TableCell className="font-mono">₹{formatPrice(alert.ltpAtTrigger)}</TableCell>
                             <TableCell className="font-mono">
                               <div className="flex items-center gap-1">
-                                {getPriceMovementIcon(alert.baselinePrice, alert.currentPrice)}
-                                <span>₹{formatPrice(alert.currentPrice)}</span>
+                                {getPriceMovementIcon(alert.ltpAtTrigger, currentLtp)}
+                                <span>₹{formatPrice(currentLtp)}</span>
                                 {priceChange !== 0 && (
                                   <span className={`text-xs ${priceChange > 0 ? "text-green-600" : "text-red-600"}`}>
                                     ({priceChange > 0 ? "+" : ""}

@@ -318,8 +318,8 @@ export function useTickData() {
    * tick state is updated.
    */
   function getAudioPrefs(): { type: string; volume: number } {
-    if (typeof window === "undefined") return { type: "square", volume: 0.6 }
-    const type = localStorage.getItem("alertSoundType") || "square"
+    if (typeof window === "undefined") return { type: "sine", volume: 0.6 }
+    const type = localStorage.getItem("alertSoundType") || "sine"
     const v = Number.parseInt(localStorage.getItem("alertSoundVolume") || "60")
     const volume = Number.isFinite(v) ? Math.max(0, Math.min(100, v)) / 100 : 0.6
     return { type, volume }
@@ -340,6 +340,13 @@ export function useTickData() {
     if (type === "silent") return null
     return table[type] || table.square
   }
+
+  const shouldEmitConnectionAlerts = useCallback(() => {
+    const status = getCurrentMarketStatus("equity")
+    if (!status.isOpen) return false
+    if (status.session && status.session !== "Open") return false
+    return true
+  }, [])
 
   const startDisconnectSound = useCallback(() => {
     if (!audioContextRef.current) return
@@ -380,16 +387,22 @@ export function useTickData() {
     }
   }, [])
 
-  // Schedule a single reconnect attempt and countdown (no TDZ on connect function)
-  const scheduleReconnectOnce = useCallback((delayMs: number, connect: () => void) => {
-    if (reconnectTimeoutRef.current) return
-    setNextRetryAt(Date.now() + delayMs)
-    startDisconnectSound()
-    reconnectTimeoutRef.current = setTimeout(() => {
-      reconnectTimeoutRef.current = null
-      connect()
-    }, delayMs)
-  }, [startDisconnectSound])
+  const scheduleReconnectOnce = useCallback(
+    (delayMs: number, connect: () => void) => {
+      if (reconnectTimeoutRef.current) return
+      setNextRetryAt(Date.now() + delayMs)
+      if (shouldEmitConnectionAlerts()) {
+        startDisconnectSound()
+      } else {
+        stopDisconnectSound()
+      }
+      reconnectTimeoutRef.current = setTimeout(() => {
+        reconnectTimeoutRef.current = null
+        connect()
+      }, delayMs)
+    },
+    [shouldEmitConnectionAlerts, startDisconnectSound, stopDisconnectSound],
+  )
 
   // Retry countdown updater
   useEffect(() => {
@@ -436,7 +449,11 @@ export function useTickData() {
           setConnectionStatus("disconnected")
           const delay = 10000
           scheduleReconnectOnce(delay, connectToSSE)
-          addAlert("connection", "Connection timeout", "high")
+          if (shouldEmitConnectionAlerts()) {
+            addAlert("connection", "Connection timeout", "high")
+          } else {
+            addDebugInfo("Connection timeout outside trading hours - alert suppressed")
+          }
         }
       }, 8000)
 
@@ -518,18 +535,28 @@ export function useTickData() {
         setConnectionStatus("disconnected")
 
         const delay = 10000
-        try { eventSource.close() } catch {}
+        try {
+          eventSource.close()
+        } catch {}
         scheduleReconnectOnce(delay, connectToSSE)
-        addAlert("connection", `Connection lost. Reconnecting in ${delay / 1000}s...`, "high")
+        if (shouldEmitConnectionAlerts()) {
+          addAlert("connection", `Connection lost. Reconnecting in ${delay / 1000}s...`, "high")
+        } else {
+          addDebugInfo("Connection lost outside trading hours - alert suppressed")
+        }
       }
     } catch (error) {
       addDebugInfo(`Failed to create SSE connection: ${error}`)
       setConnectionStatus("disconnected")
       const delay = 10000
       scheduleReconnectOnce(delay, connectToSSE)
-      addAlert("connection", `Connection failed. Reconnecting in ${delay / 1000}s...`, "high")
+      if (shouldEmitConnectionAlerts()) {
+        addAlert("connection", `Connection failed. Reconnecting in ${delay / 1000}s...`, "high")
+      } else {
+        addDebugInfo("Connection failed outside trading hours - alert suppressed")
+      }
     }
-  }, [addAlert, addDebugInfo, processTickData, scheduleReconnectOnce])
+  }, [addAlert, addDebugInfo, processTickData, scheduleReconnectOnce, shouldEmitConnectionAlerts])
 
   useEffect(() => {
     connectToSSE()

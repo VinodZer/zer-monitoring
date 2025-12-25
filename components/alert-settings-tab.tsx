@@ -237,8 +237,8 @@ export function AlertSettingsTab({
 
   // Global alert sound settings (persist to localStorage)
   const [soundType, setSoundType] = useState<string>(() => {
-    if (typeof window === "undefined") return "square"
-    return localStorage.getItem("alertSoundType") || "square"
+    if (typeof window === "undefined") return "sine"
+    return localStorage.getItem("alertSoundType") || "sine"
   })
   const [volume, setVolume] = useState<number>(() => {
     if (typeof window === "undefined") return 60

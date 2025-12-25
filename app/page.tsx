@@ -25,6 +25,7 @@ import { useInactivityAlerts } from "@/hooks/use-inactivity-alerts"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { DebugDashboard } from "@/components/debug-dashboard"
 import DashboardGuard from "@/components/dashboard-guard"
+import { MobileBottomNav } from "@/components/mobile-bottom-nav"
 
 /**
  * MarketDashboard is the main page-level component that composes the live
@@ -96,7 +97,7 @@ export default function MarketDashboard() {
     <>
       <div
         id="dashboard-root"
-        className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6 transition-colors relative"
+        className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6 md:pb-4 pb-28 transition-colors relative"
       >
         {!isNavHidden && (
           <div className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-700/50 shadow-sm transition-colors">
@@ -327,7 +328,7 @@ export default function MarketDashboard() {
 
           <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-4">
             {!isNavHidden && (
-              <TabsList className="bg-white border text-sm">
+              <TabsList className="hidden md:flex bg-white border text-sm">
                 <TabsTrigger value="kite" className="flex items-center gap-1.5 text-xs sm:text-sm font-medium">
                   <ActivityIcon className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
                   Kite
@@ -430,6 +431,7 @@ export default function MarketDashboard() {
                 alerts={inactivityAlerts}
                 onClearAlerts={clearAllAlerts}
                 onMarkAlertAsChecked={markAlertAsChecked}
+                ticks={ticks}
               />
             </TabsContent>
 
@@ -453,6 +455,18 @@ export default function MarketDashboard() {
           </Tabs>
         </div>
       </div>
+
+      <MobileBottomNav
+        selectedTab={selectedTab}
+        onTabChange={setSelectedTab}
+        instrumentCount={uniqueInstruments.length}
+        alertCount={enabledAlertsCount}
+        alertingCount={inactiveSymbols.size}
+        isConnected={isConnected}
+        connectionStatus={connectionStatus}
+        nextRetryIn={nextRetryIn}
+      />
+
       <DashboardGuard targetId="dashboard-root" />
     </>
   )
