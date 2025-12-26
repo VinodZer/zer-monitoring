@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge"
 import { Clock, AlertTriangle, Bell, Settings2 } from "lucide-react"
 import type { InactivityAlertConfig } from "@/hooks/use-inactivity-alerts"
 import { getDetailedMarketStatus, getMarketTypeForInstrument } from "@/utils/market-timings"
+import { getDefaultDpltpDuration, getExchangeFromName } from "@/utils/exchange-detection"
 
 interface SymbolAlertSettingsDialogProps {
   isOpen: boolean
@@ -28,7 +29,7 @@ interface SymbolAlertSettingsDialogProps {
 
 const DEFAULT_CONFIG: InactivityAlertConfig = {
   enabled: true,
-  duration: 30,
+  duration: 15,
   dpltpEnabled: false,
   dpltpDuration: 60,
   respectMarketHours: true,
@@ -47,10 +48,19 @@ export function SymbolAlertSettingsDialog({
   onSave,
   symbolName,
 }: SymbolAlertSettingsDialogProps) {
-  // Use actual config directly, auto-save on changes
-  const defaultConfig = isIndex(symbolName) ? { ...DEFAULT_CONFIG, enabled: true, duration: 20 } : DEFAULT_CONFIG
-  const currentConfig = config || defaultConfig
   const isIndexSymbol = isIndex(symbolName)
+  const marketType = getMarketTypeForInstrument(symbolName)
+  const marketStatus = getDetailedMarketStatus(symbolName)
+  const exchangeCode = getExchangeFromName(symbolName)
+  const extendedDurationSegment = exchangeCode === "MCX" || exchangeCode === "CDS"
+  const baseDuration = extendedDurationSegment ? 30 : 15
+  const baseDpltpDuration = getDefaultDpltpDuration(exchangeCode)
+
+  // Use actual config directly, auto-save on changes
+  const defaultConfig = isIndexSymbol
+    ? { ...DEFAULT_CONFIG, enabled: true, duration: 15, dpltpEnabled: false, dpltpDuration: 0 }
+    : { ...DEFAULT_CONFIG, enabled: false, duration: baseDuration, dpltpEnabled: true, dpltpDuration: baseDpltpDuration }
+  const currentConfig = config || defaultConfig
   const effectiveConfig: InactivityAlertConfig = isIndexSymbol
     ? { ...currentConfig, dpltpEnabled: false, dpltpDuration: 0 }
     : currentConfig
@@ -62,8 +72,6 @@ export function SymbolAlertSettingsDialog({
   }
 
   // Get market information for this symbol
-  const marketStatus = getDetailedMarketStatus(symbolName)
-  const marketType = getMarketTypeForInstrument(symbolName)
 
   const getMarketTimingInfo = () => {
     switch (marketType) {
@@ -174,13 +182,13 @@ export function SymbolAlertSettingsDialog({
                     type="number"
                     value={effectiveConfig.duration}
                     onChange={(e) => {
-                      const duration = Math.max(0, Number.parseInt(e.target.value) || 20)
+                      const duration = Math.max(0, Number.parseInt(e.target.value) || baseDuration)
                       updateConfig({ duration })
                     }}
                     min="0"
                     max="1000"
                     className="w-full"
-                    placeholder="20"
+                    placeholder={String(baseDuration)}
                     disabled={false}
                   />
                   <p className="text-xs text-muted-foreground">Alert if LTP doesn't change for this duration</p>
@@ -219,15 +227,15 @@ export function SymbolAlertSettingsDialog({
                     <Input
                       id="dpltpDuration"
                       type="number"
-                      value={effectiveConfig.dpltpDuration || 60}
+                      value={effectiveConfig.dpltpDuration || baseDpltpDuration}
                       onChange={(e) => {
-                        const dpltpDuration = Math.max(0, Number.parseInt(e.target.value) || 60)
+                        const dpltpDuration = Math.max(0, Number.parseInt(e.target.value) || baseDpltpDuration)
                         updateConfig({ dpltpDuration })
                       }}
                       min="0"
                       max="1000"
                       className="w-full"
-                      placeholder="60"
+                      placeholder={String(baseDpltpDuration)}
                     />
                     <p className="text-xs text-muted-foreground">
                       Alert if Depth + LTP price doesn't change for this duration
@@ -282,7 +290,9 @@ export function SymbolAlertSettingsDialog({
                   <div>• LTP alert if price unchanged for {effectiveConfig.duration} seconds</div>
                 )}
                 {effectiveConfig.dpltpEnabled && (
-                  <div>• Depth + LTP alert if price unchanged for {effectiveConfig.dpltpDuration || 60} seconds</div>
+                  <div>
+                    • Depth + LTP alert if price unchanged for {effectiveConfig.dpltpDuration || baseDpltpDuration} seconds
+                  </div>
                 )}
                 <div className="text-xs text-blue-600 mt-2">
                   {effectiveConfig.respectMarketHours

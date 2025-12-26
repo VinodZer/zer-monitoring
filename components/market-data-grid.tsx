@@ -20,6 +20,7 @@ import {
 import type { TickData } from "@/hooks/use-tick-data"
 import { getCurrentMarketStatus, getMarketTypeForInstrument } from "@/utils/market-timings"
 import { calculatePriceTrend, calculateDayTrend } from "@/utils/price-trends"
+import { calculateDepthAverage } from "@/utils/depth-ltp"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -142,37 +143,20 @@ const formatPriceWithDecimals = (price: number, instrumentName?: string) => {
 }
 
 /**
- * Compute the simple arithmetic average of price values in a depth level array.
- * Returns null when input is empty or invalid.
- * @param levels - Array of depth level objects
- * @returns Average price or null
- */
-function avgPrice(levels?: { price: number; quantity?: number; orders?: number }[] | null) {
-  if (!levels || levels.length === 0) return null
-  const sum = levels.reduce((acc, l) => acc + (Number(l?.price) || 0), 0)
-  const avg = sum / levels.length
-  return Number.isFinite(avg) ? avg : null
-}
-
-/**
- * Compute a combined depth + LTP price by averaging LTP with mean bid and
- * offer prices when available. Returns null if no valid numeric values exist.
+ * Compute the depth average by summing all numeric depth values and dividing by
+ * the fixed divisor defined for depth calculations.
  *
- * @param instrument - Partial instrument object containing last_price and depth
- * @returns Combined numeric price or null
+ * @param instrument - Partial instrument object containing depth levels
+ * @returns Depth average or null when unavailable
  */
 function getDepthPlusLtpPrice(instrument?: {
-  last_price?: number
-  depth?: { buy?: { price: number }[]; sell?: { price: number }[] }
+  depth?: {
+    buy?: { price?: number; quantity?: number; orders?: number }[]
+    sell?: { price?: number; quantity?: number; orders?: number }[]
+  }
 }) {
   if (!instrument) return null
-  const ltp = typeof instrument.last_price === "number" ? instrument.last_price : null
-  const bidAvg = avgPrice(instrument.depth?.buy || [])
-  const offerAvg = avgPrice(instrument.depth?.sell || [])
-  const parts = [ltp, bidAvg, offerAvg].filter((v): v is number => typeof v === "number" && !Number.isNaN(v))
-  if (parts.length === 0) return null
-  const combined = parts.reduce((a, b) => a + b, 0) / parts.length
-  return Number.isFinite(combined) ? combined : null
+  return calculateDepthAverage(instrument.depth)
 }
 
 interface MarketDataGridProps {
@@ -633,7 +617,7 @@ const InstrumentCard = memo(function InstrumentCard({
                     {formatVolume(instrument.volume)}
                   </td>
                   <td className="text-gray-500 font-semibold py-0.5 border-b border-gray-200 dark:border-gray-700 text-center">
-                    Depth + LTP
+                    Depth+LTP AVG
                   </td>
                   <td className="font-bold py-0.5 border-b border-gray-200 dark:border-gray-700 text-center whitespace-nowrap tabular-nums">
                     {(() => {
@@ -682,41 +666,6 @@ const InstrumentCard = memo(function InstrumentCard({
                       return parts.length ? `${parts.join(" + ")} On` : "OFF"
                     })()}
                   </td>
-                </tr>
-                <tr className="align-middle">
-                  {(() => {
-                    const buy = instrument.depth?.buy || []
-                    const sell = instrument.depth?.sell || []
-                    const avg = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0)
-                    const bidAvgOrders = avg(buy.map((l) => l.orders || 0))
-                    const bidAvgQty = avg(buy.map((l) => l.quantity || 0))
-                    const offerAvgOrders = avg(sell.map((l) => l.orders || 0))
-                    const offerAvgQty = avg(sell.map((l) => l.quantity || 0))
-                    return (
-                      <>
-                        <td className="text-gray-500 font-semibold py-1 text-center border-t border-gray-200 dark:border-gray-700">
-                          <p className="text-[10px] leading-[20px] font-semibold">Bids Avg</p>
-                        </td>
-                        <td className="font-bold text-center py-1 whitespace-nowrap tabular-nums border-t border-gray-200 dark:border-gray-700">
-                          {buy.length ? `${bidAvgOrders.toFixed(1)} / ${Math.round(bidAvgQty).toLocaleString()}` : "-"}
-                        </td>
-                        <td className="text-gray-500 font-semibold py-1 pl-3 sm:pl-5 text-center border-t border-gray-200 dark:border-gray-700">
-                          <p className="text-[10px] leading-[20px] font-semibold">Offers Avg</p>
-                        </td>
-                        <td className="font-bold text-center py-1 whitespace-nowrap tabular-nums border-t border-gray-200 dark:border-gray-700">
-                          {sell.length
-                            ? `${offerAvgOrders.toFixed(1)} / ${Math.round(offerAvgQty).toLocaleString()}`
-                            : "-"}
-                        </td>
-                        <td className="text-gray-500 font-semibold py-1 pl-3 sm:pl-5 text-center border-t border-gray-200 dark:border-gray-700">
-                          <p className="text-[10px] leading-[20px] font-semibold">Depth</p>
-                        </td>
-                        <td className="font-bold py-1 text-center whitespace-nowrap border-t border-gray-200 dark:border-gray-700">
-                          {buy.length || sell.length ? `${buy.length}/${sell.length}` : "-"}
-                        </td>
-                      </>
-                    )
-                  })()}
                 </tr>
               </tbody>
             </table>
@@ -1138,38 +1087,43 @@ export function MarketDataGrid({
           const maxOtherCards = 15 // Show more cards to ensure futures are included
 
           // Sort other instruments by desired priority order
-          const PRIORITY_SYMBOLS = [
-            "BHEL",
-            "RELIANCE",
-            "NIFTY25SEPFUT",
-            "SENSEX25SEPFUT",
-            "CRUDEOIL25SEPFUT",
-            "USDINR25SEPFUT",
+          const PRIORITY_SEQUENCE = [
+            "RELIANCE_NSE",
+            "RELIANCE_BSE",
+            "NIFTY25OCTFUT",
+            "SENSEX25OCTFUT",
+            "CRUDEOIL25OCTFUT",
+            "USDINR25OCTFUT",
           ] as const
 
           const normalize = (s?: string | null) => (s ? s.toUpperCase().replace(/[^A-Z0-9]/g, "") : "")
 
-          const getKeyForInstrument = (inst: InstrumentData) => {
-            const ts = normalize((inst as any).tradingsymbol)
-            const name = normalize(getInstrumentName(inst))
-            return ts || name
+          const getPriorityKey = (inst: InstrumentData) => {
+            const symbol = normalize((inst as any).tradingsymbol) || normalize(getInstrumentName(inst))
+            const exchange = normalize((inst as any).exchange) || normalize(getExchange(inst))
+            if (symbol === "RELIANCE" && exchange) {
+              return `${symbol}_${exchange}`
+            }
+            return symbol
           }
 
           const originalIndex = new Map<number, number>()
           otherInstruments.forEach((inst, idx) => originalIndex.set(inst.instrument_token, idx))
 
           const sortedOther = [...otherInstruments].sort((a, b) => {
-            const aKey = getKeyForInstrument(a)
-            const bKey = getKeyForInstrument(b)
-            const aPri = PRIORITY_SYMBOLS.indexOf(aKey as any)
-            const bPri = PRIORITY_SYMBOLS.indexOf(bKey as any)
-            const aRank = aPri === -1 ? Number.POSITIVE_INFINITY : aPri
-            const bRank = bPri === -1 ? Number.POSITIVE_INFINITY : bPri
+            const aKey = getPriorityKey(a)
+            const bKey = getPriorityKey(b)
+            const rankOf = (key: string) => {
+              const index = PRIORITY_SEQUENCE.findIndex((entry) => entry === key)
+              return index === -1 ? Number.POSITIVE_INFINITY : index
+            }
+            const aRank = rankOf(aKey)
+            const bRank = rankOf(bKey)
             if (aRank !== bRank) return aRank - bRank
             return (originalIndex.get(a.instrument_token) || 0) - (originalIndex.get(b.instrument_token) || 0)
           })
 
-          const limitedInstruments = sortedOther.slice(0, Math.max(maxOtherCards, PRIORITY_SYMBOLS.length))
+          const limitedInstruments = sortedOther.slice(0, Math.max(maxOtherCards, PRIORITY_SEQUENCE.length))
 
           limitedInstruments.forEach((instrument) => {
             const instrumentTickCount = ticks.filter((t) => t.instrument_token === instrument.instrument_token).length
